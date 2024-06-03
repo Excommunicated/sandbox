@@ -1,4 +1,4 @@
-# VAultwarden on Docker With Cloudflare Tunnel and Backups
+# Vaultwarden on Docker With Cloudflare Tunnel and Backups
 
 All of these steps should work no matter where the Docker host, But in this example will be using an LXC container on Proxmox
 
@@ -16,9 +16,15 @@ services:
     image: vaultwarden/server:latest
     restart: unless-stopped
     environment:
-      - DOMAIN=${VAULTWARDEN_DOMAIN}
+      - DOMAIN=${VW_DOMAIN}
       - SIGNUPS_ALLOWED=false
-      - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_TOKEN}
+      - ADMIN_TOKEN=${VW_ADMIN_TOKEN}
+      - YUBICO_CLIENT_ID=${VW_YUBICO_CLIENT_ID}
+      - YUBICO_SECRET_KEY=${VW_YUBICO_SECRET_KEY}
+      - SMTP_HOST=${VW_SMTP_HOST}
+      - SMTP_FROM=${VW_SMTP_FROM}
+      - SMTP_USERNAME=${VW_SMTP_USERNAME}
+      - SMTP_PASSWORD=${VW_SMTP_PASSWORD}
     ports:
       - 8200:80
     volumes:
@@ -32,11 +38,13 @@ services:
     restart: always
     environment:
       - BACKUP_KEEP_DAYS=30
+      - BACKUP_FILE_SUFFIX=%Y%m%d%H%M
       - MAIL_SMTP_ENABLE=TRUE
       - MAIL_SMTP_VARIABLES=${BACKUP_SMTP_VARIABLES}
       - MAIL_TO=${BACKUP_MAIL_TO}
       - MAIL_WHEN_SUCCESS=FALSE
       - MAIL_WHEN_FAILURE=TRUE
+      - ZIP_PASSWORD=${BACKUP_ZIP_PASSWORD}
     volumes:
       - vaultwarden-data:/bitwarden/data/
       - vaultwarden-rclone-data:/config/
@@ -50,7 +58,7 @@ services:
     read_only: true
     volumes:
       - ./cloudflared-config:/root/.cloudflared/
-    command: [ "tunnel", "run", "${CLOUDFLARED_TUNNEL_ID}" ]
+    command: [ "tunnel", "run", "${TUNNEL_ID}" ]
     user: root
     depends_on:
       - vaultwarden
@@ -63,7 +71,7 @@ volumes:
   vaultwarden-rclone-data:
     external: true
     name: vaultwarden-rclone-data
-
+    
 networks:
   vaultwarden-network:
     name: vaultwarden-network
@@ -72,11 +80,32 @@ networks:
 
 You then will need to create a `.env` file in the same folder as the `docker-compose.yml`. Inside you will need the following variables:
 ```ini
-CLOUDFLARED_TUNNEL_ID=aaaa-bbbb-cccc-dddd-eeeeeeee
-VAULTWARDEN_DOMAIN=https://some.domain.com
-VAULTWARDEN_ADMIN_TOKEN=''
-BACKUP_SMTP_VARIABLES=''
-BACKUP_MAIN_TO='abc@exacmple.com'
+# Cloudflare
+TUNNEL_ID=aaaa-bbbb-cccc-dddddddddddd
+
+# Vaultwarden
+VW_DOMAIN='https://some.domain.com'
+VW_ADMIN_TOKEN=''
+VW_YUBICO_CLIENT_ID=12345
+VW_YUBICO_SECRET_KEY='secret'
+VW_SMTP_HOST=smtp.mail.com
+VW_SMTP_FROM='admin@domain.com'
+VW_SMTP_USERNAME='admin@domain.com'
+VW_SMTP_PASSWORD='fake-password'
+
+# Backup
+BACKUP_SMTP_VARIABLES='-S smtp-use-starttls -S smtp=smtp://smtp.mail.com:587 -S smtp-auth=login -S smtp-auth-user=admin@domain.com -S smtp-auth-password=fake-password -S from=admin@domain.com'
+BACKUP_MAIL_TO='someone@mail.com'
+BACKUP_ZIP_PASSWORD='CHANGEME!'
+```
+
+## Setup Rclone
+See details [here](https://github.com/ttionya/vaultwarden-backup?tab=readme-ov-file#configure-and-check)
+```bash
+docker run --rm -it \
+  --mount type=volume,source=vaultwarden-rclone-data,target=/config/ \
+  ttionya/vaultwarden-backup:latest \
+  rclone config
 ```
 
 ## Cloudflare Tunnel Setup
@@ -123,4 +152,14 @@ Using [this](https://github.com/ttionya/vaultwarden-backup?tab=readme-ov-file#co
 
 ## Running
 `docker compose up -d`
+
+## Restore
+See details [here](https://github.com/ttionya/vaultwarden-backup?tab=readme-ov-file#configure-and-check)
+```bash
+docker run --rm -it \
+  --mount type=volume,source=vaultwarden-data,target=/bitwarden/data/ \
+  --mount type=bind,source=$(pwd),target=/bitwarden/restore/ \
+  ttionya/vaultwarden-backup:latest restore \
+  --zip-file backup.zip
+```
 
