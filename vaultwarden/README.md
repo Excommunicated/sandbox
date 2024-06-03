@@ -99,15 +99,6 @@ BACKUP_MAIL_TO='someone@mail.com'
 BACKUP_ZIP_PASSWORD='CHANGEME!'
 ```
 
-## Setup Rclone
-See details [here](https://github.com/ttionya/vaultwarden-backup?tab=readme-ov-file#configure-and-check)
-```bash
-docker run --rm -it \
-  --mount type=volume,source=vaultwarden-rclone-data,target=/config/ \
-  ttionya/vaultwarden-backup:latest \
-  rclone config
-```
-
 ## Cloudflare Tunnel Setup
 Copied from [Vaultwarden wiki - Proxy Examples - Cloudflare Tunnel](https://github.com/dani-garcia/vaultwarden/wiki/Proxy-examples)
 
@@ -149,6 +140,12 @@ ingress:
 
 ## Setting up the Backup
 Using [this](https://github.com/ttionya/vaultwarden-backup?tab=readme-ov-file#configure-and-check), Setup the rclone backup prior to starting the container for the first time.
+```bash
+docker run --rm -it \
+  --mount type=volume,source=vaultwarden-rclone-data,target=/config/ \
+  ttionya/vaultwarden-backup:latest \
+  rclone config
+```
 
 ## Running
 `docker compose up -d`
