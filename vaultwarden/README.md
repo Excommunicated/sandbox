@@ -13,7 +13,7 @@ services:
 
   vaultwarden:
     container_name: vaultwarden
-    image: vaultwarden/server:latest
+    image: excommunicated/vaultwarden
     restart: unless-stopped
     environment:
       - DOMAIN=${VW_DOMAIN}
@@ -39,12 +39,12 @@ services:
     environment:
       - BACKUP_KEEP_DAYS=30
       - BACKUP_FILE_SUFFIX=%Y%m%d%H%M
+      - ZIP_PASSWORD=${BACKUP_ZIP_PASSWORD}
       - MAIL_SMTP_ENABLE=TRUE
       - MAIL_SMTP_VARIABLES=${BACKUP_SMTP_VARIABLES}
       - MAIL_TO=${BACKUP_MAIL_TO}
       - MAIL_WHEN_SUCCESS=FALSE
       - MAIL_WHEN_FAILURE=TRUE
-      - ZIP_PASSWORD=${BACKUP_ZIP_PASSWORD}
     volumes:
       - vaultwarden-data:/bitwarden/data/
       - vaultwarden-rclone-data:/config/
@@ -65,13 +65,35 @@ services:
     networks:
       - vaultwarden-network
 
+  dockerproxy:
+    container_name: dockerproxy
+    image: ghcr.io/tecnativa/docker-socket-proxy:0.1.2
+    environment:
+      - CONTAINERS=1
+      - SERVICES=1
+      - TASKS=1
+      - POST=0
+    ports:
+      - 12375:2375
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
 volumes:
   vaultwarden-data:
+    # Specify the name of the volume where you save the vaultwarden data,
+    # use vaultwarden-data for new users
+    # and bitwardenrs-data for migrated users
     name: vaultwarden-data
+    # name: bitwardenrs-data
   vaultwarden-rclone-data:
     external: true
+    # Specify the name of the volume where you save the rclone configuration,
+    # use vaultwarden-rclone-data for new users
+    # and bitwardenrs-rclone-data for migrated users
     name: vaultwarden-rclone-data
-    
+    # name: bitwardenrs-rclone-data
+
 networks:
   vaultwarden-network:
     name: vaultwarden-network
